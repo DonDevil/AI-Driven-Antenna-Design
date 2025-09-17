@@ -1,0 +1,50 @@
+User Input → (freq, material, family, optimization_goal)
+        ↓
+ Check if ANN exists for this family
+        ↓
+  Yes ---------------------- No
+  ↓                           ↓
+Load ANN              Run CST sweeps → Build dataset → Train ANN
+  ↓                           ↓
+Predict parameters       Store ANN for future use
+  ↓
+Build antenna in CST
+  ↓
+Run CST simulation to verify
+  ↓
+If mismatch → run optimization loop until goal achieved
+
+
+Directory Structure
+
+antenna_ai/
+│── main.py                  # Entry point: user input → calls pipeline
+│
+├── cst_interface/
+│   ├── __init__.py
+│   ├── cst_driver.py        # Wrapper for CST DesignEnvironment (open CST, run macros)
+│   ├── builders/
+│   │   ├── patch.py         # Functions to build patch antenna in CST
+│   │   ├── slot.py          # Functions to build slot antenna
+│   │   ├── dipole.py        # ...
+│   │   └── utils.py         # Shared CST helper macros
+│   └── sweep.py             # Run parameter sweeps, extract results
+│
+├── models/
+│   ├── __init__.py
+│   ├── trainer.py           # Train ANN models from CST sweep datasets
+│   ├── predictor.py         # Use trained ANN to predict parameters or freq
+│   ├── optimizer.py         # Inverse design: refine ANN predictions (Optuna/GA)
+│   └── saved/               # Store trained ANN models (.keras / .pkl / scalers)
+│
+├── datasets/
+│   ├── sweeps/              # Raw CST sweep results (.txt, .csv)
+│   ├── processed/           # Cleaned CSVs (forward/inverse datasets)
+│   └── loaders.py           # Load dataset into numpy/pandas for training
+│
+├── utils/
+│   ├── visualizer.py        # Parity plots, residuals, learning curves
+│   ├── logger.py            # Logging helper
+│   └── config.py            # Global config (paths, CST install path, etc.)
+│
+└── README.md                # Documentation
