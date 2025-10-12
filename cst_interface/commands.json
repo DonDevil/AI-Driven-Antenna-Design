@@ -1,0 +1,7 @@
+{
+"use template":"using template",
+"define material":"defining material",
+"define component":"defining component",
+"define brick":"With Brick\n     .Reset \n     .Name \"{solid_name}\" \n     .Component \"{component_name}\" \n     .Material \"{material}\" \n     .Xrange \"{x1}\", \"{x2}\" \n     .Yrange \"{y1}\", \"{y2}\" \n     .Zrange \"{z1}\", \"{z2}\" \n     .Create\nEnd With\n",
+"define sphere":"With Sphere\n     .Reset\n     .Name \"{solid_name}\" \n      .Component \"{component_name}\" \n     .Material \"{material}\" \n      .Axis \"{axis}\" \n    .CenterRadius \"{cradius}\" \n    .TopRadius \"{tradius}\" \n    .BottomRadius \"{bradius}\" \n     .Center \"{center_x}\", \"{center_y}\", \"{center_z}\" \n     .Segments \"{segments}\" \n     .Create\nEnd With\n"
+}
