@@ -447,5 +447,52 @@
     "wireframe": "False",
     "transparency": "0",
     "create": ""
+  },
+  "Brass (65%)": {
+    "name": "Brass (65%)",
+    "folder": "",
+    "frqtype": "all",
+    "type": "Lossy metal",
+    "setmaterialunit": [
+      "GHz",
+      "mm"
+    ],
+    "epsilon": "1",
+    "mu": "1.0",
+    "kappa": "1.59e+007",
+    "tand": "0.0",
+    "tandfreq": "0.0",
+    "tandgiven": "False",
+    "tandmodel": "ConstTanD",
+    "kappam": "0",
+    "tandm": "0.0",
+    "tandmfreq": "0.0",
+    "tandmgiven": "False",
+    "tandmmodel": "ConstTanD",
+    "dispmodeleps": "None",
+    "dispmodelmu": "None",
+    "dispersivefittingschemeeps": "General 1st",
+    "dispersivefittingschememu": "General 1st",
+    "usegeneraldispersioneps": "False",
+    "usegeneraldispersionmu": "False",
+    "rho": "8500.0",
+    "thermaltype": "Normal",
+    "thermalconductivity": "109",
+    "specificheat": [
+      "380",
+      "J/K/kg"
+    ],
+    "mechanicstype": "Isotropic",
+    "youngsmodulus": "102",
+    "poissonsratio": "0.343",
+    "thermalexpansionrate": "20",
+    "colour": [
+      "1",
+      "1",
+      "0"
+    ],
+    "wireframe": "False",
+    "transparency": "0",
+    "create": ""
   }
 }
