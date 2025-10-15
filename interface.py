@@ -1,13 +1,15 @@
 import flet as ft
-import calculator
-import cst_antenna_implementation
+from cst_interface.cst_driver import CSTDriver
+from RDN_AI import TrainedAI
+
+ai = TrainedAI()
 
 def main(page: ft.Page):
     # Window configuration
     page.title = "AI Antenna Optimization System"
-    page.window_width = 900
-    page.window_height = 600
-    page.window_resizable = True
+    page.window_width = 600
+    page.window_height = 400
+    page.window_resizable = False
     page.padding = 0
     page.bgcolor = ft.Colors.TRANSPARENT
 
@@ -23,24 +25,36 @@ def main(page: ft.Page):
                 end=ft.alignment.bottom_right,
                 colors=["#3b82f6", "#9333ea"],  # Blue → Purple gradient
             ),
-            content=content,
+            content=ft.Row(
+                expand=True,
+                alignment=ft.MainAxisAlignment.CENTER,
+                controls=[
+                    ft.Column(
+                        expand=True,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                        controls=[content],
+                    )
+                ]
+            ),
         )
 
     # ---- Function to handle antenna generation ----
     def generate_antenna(family, shape, freq, bandwidth, substrate, conductor):
-        # Example placeholder calculations
-        print("Antenna details received:")
-        print(f"Family: {family}")
-        print(f"Shape: {shape}")
-        print(f"Resonant Frequency: {freq} GHz")
-        print(f"Bandwidth: {bandwidth} MHz")
-        print(f"Substrate: {substrate}")
-        print(f"Conductor: {conductor}")
+        substrates = {
+            'FR-4 (lossy)': (4.4, 0.0016),
+            'Rogers4350': (3.66, 0.001524),
+            'Rogers5880': (2.2, 0.00157),
+            'TaconicTLY': (2.2, 0.0015)
+        }
+        er=substrates[substrate][0]
+        sh = substrates[substrate][1]
 
-        param = calculator.calculate_rect(freq, substrate)
-        cst_antenna_implementation.create_antenna(family, shape, bandwidth, substrate, conductor, param)
-
+        param = ai.optimize_parameters(float(freq), float(bandwidth), eps_r=er, substrate_h=sh)
         print(param)
+        cst = CSTDriver()
+        cst.standard_antenna(family, shape, freq, substrate, conductor, param)
+
         page.update()
 
         return param
@@ -51,77 +65,71 @@ def main(page: ft.Page):
             route="/",
             controls=[
                 background(
-                    ft.Column(
-                        alignment=ft.MainAxisAlignment.CENTER,
-                        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                        controls=[
-                            ft.Container(
-                                width=500,
-                                height=350,
-                                border_radius=30,
-                                bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.WHITE),
-                                shadow=ft.BoxShadow(
-                                    blur_radius=30,
-                                    spread_radius=5,
-                                    color=ft.Colors.with_opacity(0.25, ft.Colors.BLACK),
+                    ft.Container(
+                        expand=False,
+                        border_radius=30,
+                        bgcolor=ft.Colors.with_opacity(0.15, ft.Colors.WHITE),
+                        shadow=ft.BoxShadow(
+                            blur_radius=30,
+                            spread_radius=5,
+                            color=ft.Colors.with_opacity(0.25, ft.Colors.BLACK),
+                        ),
+                        border=ft.border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
+                        padding=50,
+                        content=ft.Column(
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                            spacing=30,
+                            controls=[
+                                ft.Text(
+                                    "AI Antenna Optimization System",
+                                    size=26,
+                                    weight=ft.FontWeight.BOLD,
+                                    color=ft.Colors.WHITE,
+                                    text_align=ft.TextAlign.CENTER,
                                 ),
-                                border=ft.border.all(1, ft.Colors.with_opacity(0.3, ft.Colors.WHITE)),
-                                padding=40,
-                                content=ft.Column(
-                                    alignment=ft.MainAxisAlignment.CENTER,
-                                    horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-                                    spacing=30,
-                                    controls=[
-                                        ft.Text(
-                                            "AI Antenna Optimization System",
-                                            size=26,
-                                            weight=ft.FontWeight.BOLD,
-                                            color=ft.Colors.WHITE,
-                                            text_align=ft.TextAlign.CENTER,
-                                        ),
-                                        ft.Text(
-                                            "Choose what you'd like to do:",
-                                            size=16,
-                                            color=ft.Colors.WHITE70,
-                                            text_align=ft.TextAlign.CENTER,
-                                        ),
-                                        ft.ElevatedButton(
-                                            text="Create New Antenna",
-                                            style=ft.ButtonStyle(
-                                                shape=ft.RoundedRectangleBorder(radius=20),
-                                                padding=20,
-                                                bgcolor=ft.Colors.BLUE_ACCENT_400,
-                                                color=ft.Colors.WHITE,
-                                            ),
-                                            width=250,
-                                            on_click=lambda e: page.go("/create"),
-                                        ),
-                                        ft.ElevatedButton(
-                                            text="Optimize Existing Antenna",
-                                            style=ft.ButtonStyle(
-                                                shape=ft.RoundedRectangleBorder(radius=20),
-                                                padding=20,
-                                                bgcolor=ft.Colors.PURPLE_ACCENT_400,
-                                                color=ft.Colors.WHITE,
-                                            ),
-                                            width=250,
-                                            on_click=lambda e: page.go("/optimize"),
-                                        ),
-                                    ],
+                                ft.Text(
+                                    "Choose what you'd like to do:",
+                                    size=16,
+                                    color=ft.Colors.WHITE70,
+                                    text_align=ft.TextAlign.CENTER,
                                 ),
-                            ),
-                        ],
+                                ft.ElevatedButton(
+                                    text="Create New Antenna",
+                                    style=ft.ButtonStyle(
+                                        shape=ft.RoundedRectangleBorder(radius=20),
+                                        padding=20,
+                                        bgcolor=ft.Colors.BLUE_ACCENT_400,
+                                        color=ft.Colors.WHITE,
+                                    ),
+                                    width=250,
+                                    on_click=lambda e: page.go("/create"),
+                                ),
+                                ft.ElevatedButton(
+                                    text="Optimize Existing Antenna",
+                                    style=ft.ButtonStyle(
+                                        shape=ft.RoundedRectangleBorder(radius=20),
+                                        padding=20,
+                                        bgcolor=ft.Colors.PURPLE_ACCENT_400,
+                                        color=ft.Colors.WHITE,
+                                    ),
+                                    width=250,
+                                    on_click=lambda e: page.go("/optimize"),
+                                ),
+                            ],
+                        ),
                     )
                 )
-            ],
+            ]
         )
+
 
     # ---- CREATE NEW ANTENNA PAGE ----
     def create_view():
         antenna_families = ["Microstrip Patch", "Monopole", "Dipole", "Array"]
         shapes = ["Rectangular", "Circular", "Meandered", "Fractal"]
-        substrates = ["FR4", "Rogers 5880", "Duroid", "Taconic"]
-        conductors = ["Copper", "Aluminum", "Silver"]
+        substrates = ["FR-4 (lossy)", "Rogers RT-duroid 5880 (lossy)", "Taconic TLY-3 (lossy)"]
+        conductors = ["Copper (annealed)", "Aluminum", "Silver"]
 
         # Input fields
         antenna_family_dropdown = ft.Dropdown(
