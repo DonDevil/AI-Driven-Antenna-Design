@@ -43,9 +43,8 @@ def main(page: ft.Page):
     def generate_antenna(family, shape, freq, bandwidth, substrate, conductor):
         substrates = {
             'FR-4 (lossy)': (4.4, 0.0016),
-            'Rogers4350': (3.66, 0.001524),
-            'Rogers5880': (2.2, 0.00157),
-            'TaconicTLY': (2.2, 0.0015)
+            'Rogers RT-duroid 5880 (lossy)': (2.2, 0.001524),
+            'Taconic TLY-3 (lossy)': (2.3, 0.00157)
         }
         er=substrates[substrate][0]
         sh = substrates[substrate][1]
