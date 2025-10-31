@@ -1,19 +1,19 @@
 import json
 import os
 from cst.interface import DesignEnvironment
+import cst.results
 import  time
-
+import numpy as np
 class CSTDriver:
     def __init__(self, cst_project=None):
         self.material_library = r"cst_interface\database\material_library.json"
+        self.cst_project = cst_project
 
         # Load macro commands
         json_path = os.path.join(os.path.dirname(__file__), r"database\commands.json")
         with open(json_path, "r") as f:
             self.commands = json.load(f)
 
-        self.de = DesignEnvironment()
-        self.mws = self.de.new_mws() if cst_project is None else self.de.open_mws(cst_project)
 
     def add_material(self,m_name):
         def json_to_macro(material_json, material_name):
@@ -60,9 +60,52 @@ class CSTDriver:
             macro = macro.format(**kwargs)
 
         self.mws.model3d.add_to_history(name, macro)
+        
+    def extract_s11_results(self,cst_path: str):
+        """
+        Extract S11 from a CST .cst file and compute resonant frequency & bandwidth.
+        Returns: (Fr_GHz, BW_GHz, S11_min_dB)
+        """
+        # Load CST project results
+        project = cst.results.ProjectFile(cst_path, allow_interactive=True)
+        
 
-    def standard_antenna(self, family, shape, freq, substrate, conductor, params):
+        # Access 3D results module and the S11 data
+        s11_item = project.get_3d().get_result_item(r"1D Results\S-Parameters\S1,1")
+
+        # Get frequency (GHz) and S11 data (complex values)
+        freqs = np.array(s11_item.get_xdata())  # typically in GHz
+        data = s11_item.get_data()
+        
+        # Extract S11 complex values from the data tuples
+        s11_complex = np.array([d[1] for d in data])
+        s11_db = 20 * np.log10(np.abs(s11_complex))
+        
+        # --- Find Resonant Frequency (minimum S11) ---
+        min_idx = np.argmin(s11_db)
+        Fr = freqs[min_idx]
+        S11_min = s11_db[min_idx]
+
+        # --- Find Bandwidth (-10 dB crossing points) ---
+        below_10_mask = s11_db <= -10
+        if np.any(below_10_mask):
+            indices = np.where(below_10_mask)[0]
+            f_low = freqs[indices[0]]
+            f_high = freqs[indices[-1]]
+            BW = f_high - f_low
+        else:
+            BW = 0.0  # no -10 dB crossings
+
+        return Fr, BW, S11_min
+        
+    def standard_antenna(self, family, shape, freq, substrate, conductor, params, retry=False, firsttime=True):
+        if retry and not firsttime:
+            print("Retrying antenna creation with corrected parameters...", params)
+            self.de.close()
+
         if family == "Microstrip Patch" and shape == "Rectangular":
+            self.de = DesignEnvironment()
+            self.mws = self.de.new_mws() if self.cst_project is None else self.de.open_mws(self.cst_project)
             self.add_material(substrate)
             self.add_material(conductor)
             time.sleep(2)

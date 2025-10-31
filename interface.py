@@ -1,7 +1,7 @@
 import flet as ft
 from cst_interface.cst_driver import CSTDriver
 from RDN_AI import TrainedAI
-
+import time
 ai = TrainedAI()
 
 def main(page: ft.Page):
@@ -40,23 +40,85 @@ def main(page: ft.Page):
         )
 
     # ---- Function to handle antenna generation ----
-    def generate_antenna(family, shape, freq, bandwidth, substrate, conductor):
+    def generate_antenna(family, shape, freq, bandwidth, substrate, conductor, looprun=True):
         substrates = {
             'FR-4 (lossy)': (4.4, 0.0016),
             'Rogers RT-duroid 5880 (lossy)': (2.2, 0.001524),
             'Taconic TLY-3 (lossy)': (2.3, 0.00157)
         }
-        er=substrates[substrate][0]
+        er = substrates[substrate][0]
         sh = substrates[substrate][1]
-
-        param = ai.optimize_parameters(float(freq), float(bandwidth), eps_r=er, substrate_h=sh)
-        print(param)
+        # 2) Build in CST
         cst = CSTDriver()
-        cst.standard_antenna(family, shape, freq, substrate, conductor, param)
+        firsttime = True
+        # 1) Ask AI for params
+        while looprun or firsttime:
+            opt = ai.optimize_parameters(float(freq), float(bandwidth), eps_r=er, substrate_h=sh)
+            params_dict = opt["dict"]
+            numeric_params = opt["numeric"]  # [W,L,eps_eff,substrate_h,eps_r,feed_width]
+            feed_type_label = opt["feed_type_label"]
 
-        page.update()
+            cst.standard_antenna(family, shape, freq, substrate, conductor, params_dict, retry=looprun, firsttime=firsttime)
 
-        return param
+            # 3) Export + parse S11 (best-effort)
+            actual_Fr, actual_BW, s11_dip = cst.extract_s11_results(r"C:\Users\donde\AppData\Local\Temp\CSTDE1\Temp\DE\Untitled_0.cst")
+
+            # If parsing failed, set placeholders and notify
+            if actual_Fr is None:
+                page.open(ft.SnackBar(ft.Text("CST export/parse failed — feedback not logged. Check export macro/path.")))
+                page.update()
+                return params_dict
+
+            # 4) Log feedback to CSV
+            ai.log_feedback(float(freq), float(bandwidth), numeric_params, feed_type_label, actual_Fr, actual_BW, s11_dip)
+            # 5) Auto-correct predicted numeric params using the observed error
+            corrected_numeric = ai.autocorrect_params(numeric_params, desired_Fr=float(freq), actual_Fr=actual_Fr,
+                                                    desired_BW=float(bandwidth), actual_BW=actual_BW)
+            # Build corrected param dict for a re-run
+            corrected_params = params_dict.copy()
+            corrected_params["patch_W"] = corrected_numeric[0]
+            corrected_params["patch_L"] = corrected_numeric[1]
+            corrected_params["eps_eff"] = corrected_numeric[2]
+            corrected_params["substrate_h"] = corrected_numeric[3]
+            corrected_params["eps_r"] = corrected_numeric[4]
+            corrected_params["feed_width"] = corrected_numeric[5]
+            
+            # Optionally re-run in CST to see corrected result (set to True to auto-run)
+            AUTO_RERUN_AFTER_CORRECT = False
+            if AUTO_RERUN_AFTER_CORRECT:
+                # small delay to let CST settle
+                time.sleep(0.5)
+                cst.standard_antenna(family, shape, freq, substrate, conductor, corrected_params, retry=True)
+                # Try to re-export and parse again (optional)
+                actual_Fr2, actual_BW2, s11_dip2 = cst.extract_s11_results(r"C:\Users\donde\AppData\Local\Temp\CSTDE1\Temp\DE\Untitled_0.cst")
+                # log the corrected run as well
+                if actual_Fr2 is not None:
+                    ai.log_feedback(float(freq), float(bandwidth), corrected_numeric, feed_type_label, actual_Fr2, actual_BW2, s11_dip2)
+                    page.open(ft.SnackBar(ft.Text(f"Initial: {actual_Fr:.3f} GHz / {s11_dip:.1f} dB. After correct: {actual_Fr2:.3f} GHz / {s11_dip2:.1f} dB")))
+                    page.update()
+                else:
+                    page.open(ft.SnackBar(ft.Text(f"Initial: {actual_Fr:.3f} GHz / {s11_dip:.1f} dB. Correction applied but export failed.")))
+                    page.update()
+            else:
+                page.open(ft.SnackBar(ft.Text(f"Result: {actual_Fr:.3f} GHz / {s11_dip:.1f} dB")))
+                page.update()
+
+            page.update()
+
+            # 6) Retrain if enough feedback exists (synchronous)
+            ai.retrain_if_needed()
+            freq_tolerance = 0.03  # GHz, e.g., within 30 MHz
+            bw_tolerance = 15      # MHz, e.g., within 15 MHz
+
+            if abs(actual_Fr - float(freq)) < freq_tolerance and abs(actual_BW - float(bandwidth)) < bw_tolerance:
+                return
+            else:
+                print("\nretring again!!!\n")
+            firsttime = False
+
+        # return params for any further use
+        return params_dict
+
 
     # ---- HOME PAGE ----
     def home_view():
